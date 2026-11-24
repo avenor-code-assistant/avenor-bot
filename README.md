@@ -23,7 +23,7 @@ Use one instance and Python 3.11+. Render supplies `PORT` and `RENDER_EXTERNAL_U
 Set secrets only in private environment settings:
 
 - `BOT_TOKEN`: BotFather token.
-- `TURSO_DATABASE_URL`: URL of a Turso-engine database.
+- `TURSO_DATABASE_URL`: URL of a libSQL database hosted by Turso.
 - `TURSO_AUTH_TOKEN`: database-scoped credential.
 - `ADMIN_ID`: owner's positive Telegram ID. Initially `0` for discovery.
 - `GROUP_ID`: the intended group's negative Telegram ID. Initially `0` for discovery.
