@@ -243,6 +243,53 @@ async def grant(update, context):
     await update.message.reply_text(f'{"تم التفعيل" if fresh else "المرجع ده متسجل قبل كده، المدة ماتزودتش"}. {uid}\nالنهاية: {stamp(end)}')
 
 
+async def approve_applicant(update, context):
+    if not await owner(update):
+        return
+    try:
+        uid = int(context.args[0])
+        if uid <= 0:
+            raise ValueError()
+    except (ValueError, TypeError, IndexError):
+        await update.message.reply_text('استخدم /approve USER_ID (رقم المستخدم من إشعار الطلب)')
+        return
+    row = INTAKE.row(uid)
+    if not row or row['status'] != 'submitted':
+        await update.message.reply_text('مفيش طلب مرسل للمستخدم ده.')
+        return
+    try:
+        link = await context.bot.create_chat_invite_link(
+            GROUP, name=f'a{uid}'[:32], expire_date=int(time.time()) + 172800, member_limit=1)
+    except TelegramError:
+        await update.message.reply_text('فشل إنشاء لينك الجروب. اتأكد إن البوت أدمن في الجروب وعنده صلاحية دعوة المستخدمين.')
+        return
+    ok = await dm(context.bot, uid, 'تم قبول طلبك ✅\nده لينك دخول الجروب، لشخص واحد بس وصالح 48 ساعة:\n'
+                  f'{link.invite_link}\nأهلاً بيك في Avenor.')
+    if ok:
+        await update.message.reply_text(f'تم إرسال لينك الجروب للمستخدم {uid} (صالح 48 ساعة، لشخص واحد).')
+    else:
+        try:
+            await context.bot.revoke_chat_invite_link(GROUP, link.invite_link)
+        except TelegramError:
+            pass
+        await update.message.reply_text('ماقدرتش أبعت الرسالة للمستخدم. خليه يفتح البوت ويبعت /start وبعدين جرب تاني.')
+
+
+async def links(update, context):
+    if not await owner(update):
+        return
+    out = []
+    for cid, label in ((GROUP, 'الجروب'), (CHANNEL, 'القناة')):
+        if not cid:
+            continue
+        try:
+            link = await context.bot.create_chat_invite_link(cid, name='owner-link')
+            out.append(f'{label}: {link.invite_link}')
+        except TelegramError:
+            out.append(f'{label}: فشل. البوت لازم يكون أدمن وعنده صلاحية دعوة المستخدمين.')
+    await update.message.reply_text('\n'.join(out))
+
+
 async def join_request(update, context):
     if not ACCESS:
         return
@@ -575,6 +622,8 @@ def main():
                 'apply': INTAKE.apply, 'application': INTAKE.status, 'cancel': INTAKE.cancel,
                 'refund': refund, 'revoke': revoke, 'subs': subs, 'announce': announce,
                 'mute': moderate, 'unmute': moderate, 'ban': moderate, 'unban': moderate, 'health': health}
+    commands['approve'] = approve_applicant
+    commands['links'] = links
     # Moderation sees commands too. A command containing a blocked link is still removed.
     app.add_handler(MessageHandler(filters.ChatType.GROUPS & ~filters.StatusUpdate.ALL, group_message), group=-1)
     for name, handler in commands.items():
